@@ -15,7 +15,6 @@ jobs:
     env:
       PROJECT_PATH: MetaOakleyVision.xcodeproj
       SCHEME: MetaOakleyVision
-      DESTINATION: platform=iOS Simulator,name=iPhone 16
       RESULT_BUNDLE: TestResults/MetaOakleyVision.xcresult
     steps:
       - name: Checkout
@@ -33,6 +32,13 @@ jobs:
       - name: Show available simulators
         run: |
           xcrun simctl list devices available
+      - name: Resolve simulator destination
+        run: |
+          DEST=$(xcrun simctl list devices available | grep -E "iPhone 16 \(" | head -n 1 | sed -E 's/^.*\(([^)]+)\) \(.*$/platform=iOS Simulator,id=\1/')
+          if [ -z "$DEST" ]; then
+            DEST='platform=iOS Simulator,name=iPhone 16'
+          fi
+          echo "IOS_DESTINATION=$DEST" >> "$GITHUB_ENV"
       - name: Boot simulator
         run: |
           xcrun simctl boot "iPhone 16" || true
@@ -49,7 +55,7 @@ jobs:
           xcodebuild \
             -project "$PROJECT_PATH" \
             -scheme "$SCHEME" \
-            -destination "$DESTINATION" \
+            -destination "$IOS_DESTINATION" \
             -configuration Debug \
             -resultBundlePath "$RESULT_BUNDLE" \
             CODE_SIGNING_ALLOWED=NO \

@@ -25,6 +25,13 @@ jobs:
       - name: Generate Xcode project
         run: |
           xcodegen generate
+      - name: Resolve simulator destination
+        run: |
+          DEST=$(xcrun simctl list devices available | grep -E "iPhone 16 \(" | head -n 1 | sed -E 's/^.*\(([^)]+)\) \(.*$/platform=iOS Simulator,id=\1/')
+          if [ -z "$DEST" ]; then
+            DEST='platform=iOS Simulator,name=iPhone 16'
+          fi
+          echo "IOS_DESTINATION=$DEST" >> "$GITHUB_ENV"
       - name: List schemes
         run: |
           xcodebuild -list -project MetaOakleyVision.xcodeproj
@@ -39,7 +46,7 @@ jobs:
           xcodebuild \
             -project MetaOakleyVision.xcodeproj \
             -scheme MetaOakleyVision \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "$IOS_DESTINATION" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             build
@@ -48,7 +55,7 @@ jobs:
           xcodebuild \
             -project MetaOakleyVision.xcodeproj \
             -scheme MetaOakleyVision \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "$IOS_DESTINATION" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             test \
