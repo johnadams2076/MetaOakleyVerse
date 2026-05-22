@@ -12,7 +12,6 @@ jobs:
       PROJECT_PATH: CameraAccess.xcodeproj
       SCHEME: CameraAccess
       RESULT_BUNDLE: TestResults/CameraAccess.xcresult
-      SWIFT_FEATURE_FLAGS: -enable-experimental-feature IsolatedDeinit
 
     steps:
       - name: Checkout
@@ -28,6 +27,13 @@ jobs:
           mkdir -p external
           rm -rf external/meta-wearables-dat-ios
           git clone --depth 1 "$SAMPLE_REPO" external/meta-wearables-dat-ios
+
+      - name: Patch sample for Xcode 16.4 compatibility
+        run: |
+          # Upstream sample uses `isolated deinit`, which is unavailable in
+          # the production compiler shipped on GitHub's Xcode 16.4 image.
+          sed -i '' 's/^\([[:space:]]*\)isolated deinit/\1deinit/' "$SAMPLE_DIR/CameraAccess/ViewModels/DeviceSessionManager.swift"
+          sed -i '' 's/^\([[:space:]]*\)isolated deinit/\1deinit/' "$SAMPLE_DIR/CameraAccess/ViewModels/WearablesViewModel.swift"
 
       - name: Resolve simulator destination
         run: |
@@ -51,7 +57,6 @@ jobs:
             -scheme "$SCHEME" \
             -destination "$IOS_DESTINATION" \
             -configuration Debug \
-            OTHER_SWIFT_FLAGS="$(inherited) $SWIFT_FEATURE_FLAGS" \
             CODE_SIGNING_ALLOWED=NO \
             build | tee build.log
 
@@ -66,7 +71,6 @@ jobs:
             -destination "$IOS_DESTINATION" \
             -configuration Debug \
             -resultBundlePath "$RESULT_BUNDLE" \
-            OTHER_SWIFT_FLAGS="$(inherited) $SWIFT_FEATURE_FLAGS" \
             CODE_SIGNING_ALLOWED=NO \
             test \
             -only-testing:CameraAccessTests | tee test.log
