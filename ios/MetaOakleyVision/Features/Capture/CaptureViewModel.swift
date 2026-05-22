@@ -43,9 +43,12 @@ final class CaptureViewModel: ObservableObject {
         do {
             try await glassesProvider.configure()
             try await glassesProvider.connect()
+            connectionStatus = appConfig.glassesMode == .mock ? .mockConnected : .realConnected
             state = .connected(connectionStatus)
         } catch {
-            state = .error((error as? LocalizedError)?.errorDescription ?? "Failed to connect")
+            let message = (error as? LocalizedError)?.errorDescription ?? "Failed to connect"
+            connectionStatus = .error(message)
+            state = .error(message)
         }
     }
 
