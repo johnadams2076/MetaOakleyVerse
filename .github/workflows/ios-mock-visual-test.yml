@@ -39,14 +39,27 @@ jobs:
             DEST='platform=iOS Simulator,name=iPhone 16'
           fi
           echo "IOS_DESTINATION=$DEST" >> "$GITHUB_ENV"
+          if echo "$DEST" | grep -q 'id='; then
+            SIM_ID="${DEST#*id=}"
+            echo "IOS_SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          fi
       - name: Boot simulator
         run: |
-          xcrun simctl boot "iPhone 16" || true
-          xcrun simctl bootstatus "iPhone 16" -b
+          if [ -n "${IOS_SIM_ID:-}" ]; then
+            xcrun simctl boot "$IOS_SIM_ID" || true
+            xcrun simctl bootstatus "$IOS_SIM_ID" -b
+          else
+            xcrun simctl boot "iPhone 16" || true
+            xcrun simctl bootstatus "iPhone 16" -b
+          fi
       - name: Start simulator screen recording
         run: |
           mkdir -p Artifacts
-          xcrun simctl io booted recordVideo Artifacts/mock-demo.mov &
+          if [ -n "${IOS_SIM_ID:-}" ]; then
+            xcrun simctl io "$IOS_SIM_ID" recordVideo Artifacts/mock-demo.mov &
+          else
+            xcrun simctl io booted recordVideo Artifacts/mock-demo.mov &
+          fi
           echo $! > Artifacts/recording_pid.txt
       - name: Run mock visual UI test
         run: |
@@ -65,7 +78,11 @@ jobs:
         if: always()
         run: |
           mkdir -p Artifacts
-          xcrun simctl io booted screenshot Artifacts/final-screen.png || true
+          if [ -n "${IOS_SIM_ID:-}" ]; then
+            xcrun simctl io "$IOS_SIM_ID" screenshot Artifacts/final-screen.png || true
+          else
+            xcrun simctl io booted screenshot Artifacts/final-screen.png || true
+          fi
       - name: Stop simulator screen recording
         if: always()
         run: |
