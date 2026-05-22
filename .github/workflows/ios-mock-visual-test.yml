@@ -83,6 +83,13 @@ jobs:
           else
             xcrun simctl io booted screenshot Artifacts/final-screen.png || true
           fi
+      - name: Export XCT attachments
+        if: always()
+        run: |
+          mkdir -p Artifacts/UITestAttachments
+          if [ -d "$RESULT_BUNDLE" ]; then
+            xcrun xcresulttool export attachments --path "$RESULT_BUNDLE" --output-path Artifacts/UITestAttachments || true
+          fi
       - name: Stop simulator screen recording
         if: always()
         run: |

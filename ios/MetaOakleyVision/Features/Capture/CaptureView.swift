@@ -34,12 +34,20 @@ struct CaptureView: View {
                 }
 
                 HStack {
-                    Button("Ask About Video") {}
-                        .accessibilityIdentifier("videoAssistButton")
-                    Button("Background Edit") {}
-                        .accessibilityIdentifier("backgroundEditButton")
-                    Button("Settings") {}
-                        .accessibilityIdentifier("settingsButton")
+                    NavigationLink(destination: VideoAssistView()) {
+                        Text("Ask About Video")
+                    }
+                    .accessibilityIdentifier("videoAssistButton")
+
+                    NavigationLink(destination: BackgroundEditView()) {
+                        Text("Background Edit")
+                    }
+                    .accessibilityIdentifier("backgroundEditButton")
+
+                    NavigationLink(destination: SettingsView()) {
+                        Text("Settings")
+                    }
+                    .accessibilityIdentifier("settingsButton")
                 }
 
                 switch viewModel.state {
