@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDisplayName</key>
+    <string>Meta Oakley Vision</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Used to preview and test camera capture for AI scene description.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Used to let you ask a spoken question about a captured photo or video.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Used to transcribe your spoken question before sending it to the assistant.</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Needed to connect to Meta AI glasses.</string>
+    <key>MWDAT</key>
+    <dict>
+        <key>Analytics</key>
+        <dict>
+            <key>OptOut</key>
+            <true/>
+        </dict>
+    </dict>
+</dict>
+</plist>

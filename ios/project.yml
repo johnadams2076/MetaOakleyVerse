@@ -1,0 +1,47 @@
+name: MetaOakleyVision
+options:
+  bundleIdPrefix: com.metaoakleyvision
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  MetaWearablesDAT:
+    url: https://github.com/facebook/meta-wearables-dat-ios
+    from: "0.0.1"
+targets:
+  MetaOakleyVision:
+    type: application
+    platform: iOS
+    sources:
+      - MetaOakleyVision
+    resources:
+      - MetaOakleyVision/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.metaoakleyvision.app
+        INFOPLIST_FILE: MetaOakleyVision/Resources/Info.plist
+        SWIFT_VERSION: 5.0
+        IPHONEOS_DEPLOYMENT_TARGET: 17.0
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      # Add exact DAT product names after verifying package products.
+      # - package: MetaWearablesDAT
+      #   product: MWDATCore
+      # - package: MetaWearablesDAT
+      #   product: MWDATCamera
+      # - package: MetaWearablesDAT
+      #   product: MWDATMockDevice
+  MetaOakleyVisionTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - MetaOakleyVisionTests
+    dependencies:
+      - target: MetaOakleyVision
+  MetaOakleyVisionUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - MetaOakleyVisionUITests
+    dependencies:
+      - target: MetaOakleyVision

@@ -1,0 +1,77 @@
+name: iOS Mock Visual Test
+on:
+  push:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios-mock-visual-test.yml"
+  pull_request:
+  workflow_dispatch:
+jobs:
+  mock-visual-test:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
+    env:
+      PROJECT_PATH: MetaOakleyVision.xcodeproj
+      SCHEME: MetaOakleyVision
+      DESTINATION: platform=iOS Simulator,name=iPhone 16
+      RESULT_BUNDLE: TestResults/MetaOakleyVision.xcresult
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Show Xcode version
+        run: |
+          xcodebuild -version
+          xcode-select -p
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+      - name: Generate Xcode project
+        run: |
+          xcodegen generate
+      - name: Show available simulators
+        run: |
+          xcrun simctl list devices available
+      - name: Boot simulator
+        run: |
+          xcrun simctl boot "iPhone 16" || true
+          xcrun simctl bootstatus "iPhone 16" -b
+      - name: Start simulator screen recording
+        run: |
+          mkdir -p Artifacts
+          xcrun simctl io booted recordVideo Artifacts/mock-demo.mov &
+          echo $! > Artifacts/recording_pid.txt
+      - name: Run mock visual UI test
+        run: |
+          mkdir -p TestResults
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -destination "$DESTINATION" \
+            -configuration Debug \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            CODE_SIGNING_ALLOWED=NO \
+            test \
+            -only-testing:MetaOakleyVisionUITests/PhotoMVPVisualDemoUITests
+      - name: Capture final simulator screenshot
+        if: always()
+        run: |
+          mkdir -p Artifacts
+          xcrun simctl io booted screenshot Artifacts/final-screen.png || true
+      - name: Stop simulator screen recording
+        if: always()
+        run: |
+          if [ -f Artifacts/recording_pid.txt ]; then
+            kill -INT "$(cat Artifacts/recording_pid.txt)" || true
+            sleep 5
+          fi
+      - name: Upload visual artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-mock-visual-results
+          path: |
+            ios/Artifacts/**
+            ios/TestResults/**

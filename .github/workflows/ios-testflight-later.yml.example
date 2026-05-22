@@ -1,0 +1,10 @@
+name: iOS TestFlight Later
+on:
+  workflow_dispatch:
+jobs:
+  archive:
+    runs-on: macos-15
+    steps:
+      - name: Placeholder
+        run: |
+          echo "Configure Apple Developer signing before enabling TestFlight upload."

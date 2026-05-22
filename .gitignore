@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+.env
+*.env
+
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+ios/build/
+ios/TestResults/
+ios/Artifacts/
+ios/MetaOakleyVision.xcodeproj
+
+# Secrets
+*.p8
+*.mobileprovision
+*.cer
+*.p12
