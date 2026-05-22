@@ -23,14 +23,15 @@ targets:
         SWIFT_VERSION: 5.0
         IPHONEOS_DEPLOYMENT_TARGET: 17.0
         CODE_SIGN_STYLE: Automatic
-    dependencies:
-      # Add exact DAT product names after verifying package products.
-      # - package: MetaWearablesDAT
-      #   product: MWDATCore
-      # - package: MetaWearablesDAT
-      #   product: MWDATCamera
-      # - package: MetaWearablesDAT
-      #   product: MWDATMockDevice
+    dependencies: []
+    # Add exact DAT product names after verifying package products.
+    # dependencies:
+    #   - package: MetaWearablesDAT
+    #     product: MWDATCore
+    #   - package: MetaWearablesDAT
+    #     product: MWDATCamera
+    #   - package: MetaWearablesDAT
+    #     product: MWDATMockDevice
   MetaOakleyVisionTests:
     type: bundle.unit-test
     platform: iOS
