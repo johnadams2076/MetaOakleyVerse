@@ -12,6 +12,7 @@ jobs:
       PROJECT_PATH: CameraAccess.xcodeproj
       SCHEME: CameraAccess
       RESULT_BUNDLE: TestResults/CameraAccess.xcresult
+      SWIFT_FEATURE_FLAGS: -enable-experimental-feature IsolatedDeinit
 
     steps:
       - name: Checkout
@@ -50,6 +51,7 @@ jobs:
             -scheme "$SCHEME" \
             -destination "$IOS_DESTINATION" \
             -configuration Debug \
+            OTHER_SWIFT_FLAGS="$(inherited) $SWIFT_FEATURE_FLAGS" \
             CODE_SIGNING_ALLOWED=NO \
             build | tee build.log
 
@@ -64,6 +66,7 @@ jobs:
             -destination "$IOS_DESTINATION" \
             -configuration Debug \
             -resultBundlePath "$RESULT_BUNDLE" \
+            OTHER_SWIFT_FLAGS="$(inherited) $SWIFT_FEATURE_FLAGS" \
             CODE_SIGNING_ALLOWED=NO \
             test \
             -only-testing:CameraAccessTests | tee test.log
