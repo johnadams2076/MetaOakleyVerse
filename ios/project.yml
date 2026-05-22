@@ -20,6 +20,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.metaoakleyvision.app
         INFOPLIST_FILE: MetaOakleyVision/Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
         SWIFT_VERSION: 5.0
         IPHONEOS_DEPLOYMENT_TARGET: 17.0
         CODE_SIGN_STYLE: Automatic
