@@ -1,0 +1,79 @@
+name: DAT CameraAccess Sample
+
+"on":
+  workflow_dispatch:
+
+jobs:
+  cameraaccess-sample:
+    runs-on: macos-15
+    env:
+      SAMPLE_REPO: https://github.com/facebook/meta-wearables-dat-ios.git
+      SAMPLE_DIR: external/meta-wearables-dat-ios/samples/CameraAccess
+      PROJECT_PATH: CameraAccess.xcodeproj
+      SCHEME: CameraAccess
+      RESULT_BUNDLE: TestResults/CameraAccess.xcresult
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: |
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Clone Meta DAT sample repository
+        run: |
+          mkdir -p external
+          rm -rf external/meta-wearables-dat-ios
+          git clone --depth 1 "$SAMPLE_REPO" external/meta-wearables-dat-ios
+
+      - name: Resolve simulator destination
+        run: |
+          DEST=$(xcrun simctl list devices available | grep -E "iPhone 16 \(" | head -n 1 | sed -E 's/^.*\(([^)]+)\) \(.*$/platform=iOS Simulator,id=\1/')
+          if [ -z "$DEST" ]; then
+            DEST='platform=iOS Simulator,name=iPhone 16'
+          fi
+          echo "IOS_DESTINATION=$DEST" >> "$GITHUB_ENV"
+
+      - name: List CameraAccess schemes
+        working-directory: ${{ env.SAMPLE_DIR }}
+        run: |
+          xcodebuild -list -project "$PROJECT_PATH"
+
+      - name: Build CameraAccess for simulator
+        working-directory: ${{ env.SAMPLE_DIR }}
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -destination "$IOS_DESTINATION" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee build.log
+
+      - name: Run CameraAccess unit tests
+        working-directory: ${{ env.SAMPLE_DIR }}
+        run: |
+          mkdir -p TestResults
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -destination "$IOS_DESTINATION" \
+            -configuration Debug \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            CODE_SIGNING_ALLOWED=NO \
+            test \
+            -only-testing:CameraAccessTests | tee test.log
+
+      - name: Upload CameraAccess artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dat-cameraaccess-results
+          path: |
+            external/meta-wearables-dat-ios/samples/CameraAccess/build.log
+            external/meta-wearables-dat-ios/samples/CameraAccess/test.log
+            external/meta-wearables-dat-ios/samples/CameraAccess/TestResults/**

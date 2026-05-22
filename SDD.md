@@ -14,4 +14,4 @@ This repository implements an iOS-first MVP with:
 Key rule:
 - Codespaces is for editing.
 - iOS build/test runs on GitHub Actions macOS runners.
-- No Android code is part of this SDD.
+- Scope is iOS only.
