@@ -55,6 +55,13 @@ jobs:
             echo "IOS_SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
           fi
 
+      - name: Reset simulator state
+        run: |
+          xcrun simctl shutdown all || true
+          if [ -n "${IOS_SIM_ID:-}" ]; then
+            xcrun simctl erase "$IOS_SIM_ID" || true
+          fi
+
       - name: Boot simulator
         run: |
           if [ -n "${IOS_SIM_ID:-}" ]; then
@@ -87,15 +94,44 @@ jobs:
         run: |
           mkdir -p TestResults
           set -o pipefail
-          xcodebuild \
-            -project "$PROJECT_PATH" \
-            -scheme "$SCHEME" \
-            -destination "$IOS_DESTINATION" \
-            -configuration Debug \
-            -resultBundlePath "$RESULT_BUNDLE" \
-            CODE_SIGNING_ALLOWED=NO \
-            test \
-            -only-testing:CameraAccessTests | tee test.log
+          run_tests() {
+            local result_bundle="$1"
+            xcodebuild \
+              -project "$PROJECT_PATH" \
+              -scheme "$SCHEME" \
+              -destination "$IOS_DESTINATION" \
+              -configuration Debug \
+              -resultBundlePath "$result_bundle" \
+              -parallel-testing-enabled NO \
+              -maximum-concurrent-test-simulator-destinations 1 \
+              CODE_SIGNING_ALLOWED=NO \
+              test \
+              -only-testing:CameraAccessTests
+          }
+
+          run_tests "$RESULT_BUNDLE" 2>&1 | tee test.log
+          status=${PIPESTATUS[0]}
+
+          if [ "$status" -ne 0 ]; then
+            echo "First unit test attempt failed (exit $status). Rebooting simulator and retrying once..." | tee -a test.log
+            if [ -n "${IOS_SIM_ID:-}" ]; then
+              xcrun simctl shutdown "$IOS_SIM_ID" || true
+              xcrun simctl boot "$IOS_SIM_ID" || true
+              xcrun simctl bootstatus "$IOS_SIM_ID" -b || true
+            else
+              xcrun simctl shutdown all || true
+              xcrun simctl boot "iPhone 16" || true
+              xcrun simctl bootstatus "iPhone 16" -b || true
+            fi
+
+            RETRY_RESULT_BUNDLE="TestResults/CameraAccess-retry.xcresult"
+            run_tests "$RETRY_RESULT_BUNDLE" 2>&1 | tee -a test.log
+            status=${PIPESTATUS[0]}
+          fi
+
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
 
       - name: Start simulator screen recording (UI tests)
         if: ${{ github.event.inputs.run_ui_tests != 'false' }}
