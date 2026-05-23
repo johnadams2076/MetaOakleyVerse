@@ -56,12 +56,14 @@ jobs:
 
           # Follow-up hardening for simulator/dev-mode runs.
           perl -0777 -i -pe 's@init\(\) \{\n    do \{@init() {\n    #if DEBUG\n    if !MockDeviceKit.shared.isEnabled {\n      MockDeviceKit.shared.enable(config: MockDeviceKitConfig(initiallyRegistered: false))\n    }\n    #endif\n\n    do {@s' "$SAMPLE_DIR/CameraAccess/CameraAccessApp.swift"
+          perl -0777 -i -pe 's@\n\n    do \{\n      try Wearables\.configure\(\)@\n\n    let info = Bundle.main.infoDictionary ?? [:]\n    print("[CameraAccess] MWDAT =", info["MWDAT"] ?? "<missing>")\n    print("[CameraAccess] CFBundleURLTypes =", info["CFBundleURLTypes"] ?? "<missing>")\n    print("[CameraAccess] LSApplicationQueriesSchemes =", info["LSApplicationQueriesSchemes"] ?? "<missing>")\n    print("[CameraAccess] UISupportedExternalAccessoryProtocols =", info["UISupportedExternalAccessoryProtocols"] ?? "<missing>")\n    print("[CameraAccess] UIBackgroundModes =", info["UIBackgroundModes"] ?? "<missing>")\n\n    do {\n      try Wearables.configure()@s' "$SAMPLE_DIR/CameraAccess/CameraAccessApp.swift"
           perl -0777 -i -pe 's@try Wearables\.configure\(\)\n\n    MockDeviceKit\.shared\.enable\(\)@MockDeviceKit.shared.enable()\n    try Wearables.configure()@s' "$SAMPLE_DIR/CameraAccessTests/CameraAccessTests.swift"
 
           if [ "${DAT_DEVELOPER_MODE:-false}" = "true" ]; then
             perl -0777 -i -pe 's@<key>MetaAppID</key>\s*<!--.*?-->\s*<string>\$\(META_APP_ID\)</string>@<key>MetaAppID</key>\n\t\t<string>0</string>@s' "$SAMPLE_DIR/CameraAccess/Info.plist"
             perl -0777 -i -pe 's@\s*<!-- Without Developer Mode, this key will need to be set with ClientToken from the app registered in Wearables Developer Center -->\s*<key>ClientToken</key>\s*<string>\$\(CLIENT_TOKEN\)</string>@@s' "$SAMPLE_DIR/CameraAccess/Info.plist"
             perl -0777 -i -pe 's@\s*<!-- Without Developer Mode, this key will need to be set with your Apple Developer Team ID - Set this in Xcode under Signing & Capabilities -->\s*<key>TeamID</key>\s*<string>\$\(DEVELOPMENT_TEAM\)</string>@@s' "$SAMPLE_DIR/CameraAccess/Info.plist"
+            perl -0777 -i -pe 's@<key>CFBundleVersion</key>\s*<string>\$\(CURRENT_PROJECT_VERSION\)</string>@<key>CFBundleVersion</key>\n\t<string>$(CURRENT_PROJECT_VERSION)</string>\n\t<key>LSApplicationQueriesSchemes</key>\n\t<array>\n\t\t<string>fb-viewapp</string>\n\t</array>@s' "$SAMPLE_DIR/CameraAccess/Info.plist"
           fi
 
           echo "Patched CameraAccessApp init:"
@@ -70,6 +72,8 @@ jobs:
           sed -n '1,90p' "$SAMPLE_DIR/CameraAccessTests/CameraAccessTests.swift"
           echo "Patched CameraAccess Info.plist MWDAT block:"
           sed -n '/<key>MWDAT<\/key>/,/<\/dict>/p' "$SAMPLE_DIR/CameraAccess/Info.plist"
+          echo "Patched CameraAccess Info.plist query schemes:"
+          sed -n '/<key>LSApplicationQueriesSchemes<\/key>/,/<\/array>/p' "$SAMPLE_DIR/CameraAccess/Info.plist"
 
       - name: Resolve simulator destination
         run: |
