@@ -39,9 +39,9 @@ jobs:
         run: |
           # Upstream sample uses `isolated deinit`, which is unavailable in
           # the production compiler shipped on GitHub's Xcode 16.4 image.
-          # Rewrite to a deinit that performs cleanup in a MainActor-assumed scope.
-          perl -0777 -i -pe 's#isolated deinit \{\n\s*deviceMonitorTask\?\.cancel\(\)\n\s*stateObserverTask\?\.cancel\(\)\n\s*deviceSession\?\.stop\(\)\n\s*\}#deinit {\n    MainActor.assumeIsolated {\n      deviceMonitorTask?.cancel()\n      stateObserverTask?.cancel()\n      deviceSession?.stop()\n    }\n  }#s' "$SAMPLE_DIR/CameraAccess/ViewModels/DeviceSessionManager.swift"
-          perl -0777 -i -pe 's#isolated deinit \{\n\s*registrationTask\?\.cancel\(\)\n\s*deviceStreamTask\?\.cancel\(\)\n\s*setupDeviceStreamTask\?\.cancel\(\)\n\s*\}#deinit {\n    MainActor.assumeIsolated {\n      registrationTask?.cancel()\n      deviceStreamTask?.cancel()\n      setupDeviceStreamTask?.cancel()\n    }\n  }#s' "$SAMPLE_DIR/CameraAccess/ViewModels/WearablesViewModel.swift"
+          # Use a no-op deinit to avoid runtime traps from actor assumptions.
+          perl -0777 -i -pe 's#isolated deinit \{\n\s*deviceMonitorTask\?\.cancel\(\)\n\s*stateObserverTask\?\.cancel\(\)\n\s*deviceSession\?\.stop\(\)\n\s*\}#deinit {}#s' "$SAMPLE_DIR/CameraAccess/ViewModels/DeviceSessionManager.swift"
+          perl -0777 -i -pe 's#isolated deinit \{\n\s*registrationTask\?\.cancel\(\)\n\s*deviceStreamTask\?\.cancel\(\)\n\s*setupDeviceStreamTask\?\.cancel\(\)\n\s*\}#deinit {}#s' "$SAMPLE_DIR/CameraAccess/ViewModels/WearablesViewModel.swift"
 
       - name: Resolve simulator destination
         run: |
