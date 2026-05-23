@@ -45,10 +45,10 @@ jobs:
 
           # In CI, ensure MockDeviceKit is enabled before Wearables.configure().
           # This avoids configure() failing during test-host app bootstrap.
-          perl -0777 -i -pe 's@init\(\) \{\n@init() {\n    #if DEBUG\n    if !MockDeviceKit.shared.isEnabled {\n      MockDeviceKit.shared.enable()\n    }\n    #endif\n\n@s' "$SAMPLE_DIR/CameraAccess/CameraAccess/CameraAccessApp.swift"
+          perl -0777 -i -pe 's@init\(\) \{\n@init() {\n    #if DEBUG\n    if !MockDeviceKit.shared.isEnabled {\n      MockDeviceKit.shared.enable()\n    }\n    #endif\n\n@s' "$SAMPLE_DIR/CameraAccess/CameraAccessApp.swift"
 
           echo "Patched CameraAccessApp init:"
-          sed -n '1,90p' "$SAMPLE_DIR/CameraAccess/CameraAccess/CameraAccessApp.swift"
+          sed -n '1,90p' "$SAMPLE_DIR/CameraAccess/CameraAccessApp.swift"
 
       - name: Resolve simulator destination
         run: |
