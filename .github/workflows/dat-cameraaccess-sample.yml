@@ -19,6 +19,7 @@ jobs:
       SCHEME: CameraAccess
       RESULT_BUNDLE: TestResults/CameraAccess.xcresult
       UI_RESULT_BUNDLE: TestResults/CameraAccessUITests.xcresult
+      DAT_DEVELOPER_MODE: "true"
       META_APP_ID: ${{ secrets.META_APP_ID }}
       CLIENT_TOKEN: ${{ secrets.CLIENT_TOKEN }}
       DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
@@ -48,7 +49,7 @@ jobs:
 
           # Make app init fail-fast on configure() errors so CI exposes the
           # real issue instead of crashing later at Wearables.shared.
-          perl -0777 -i -pe 's@init\(\) \{.*?\n  \}\n\n  var body@init() {\n    do {\n      try Wearables.configure()\n    } catch {\n      fatalError("[CameraAccess] Failed to configure Wearables SDK: \(error)")\n    }\n\n    #if DEBUG\n    if ProcessInfo.processInfo.arguments.contains("--ui-testing") {\n      MockDeviceKit.shared.enable(config: MockDeviceKitConfig(initiallyRegistered: false))\n\n      let portFilePath = ProcessInfo.processInfo.environment["MWDAT_TEST_SERVER_PORT_FILE"]\n      Task {\n        try await MockDeviceKit.shared.startTestServer(portFilePath: portFilePath)\n      }\n    }\n    #endif\n\n    let wearables = Wearables.shared\n    self.wearables = wearables\n    self._wearablesViewModel = State(wrappedValue: WearablesViewModel(wearables: wearables))\n  }\n\n  var body@s' "$SAMPLE_DIR/CameraAccess/CameraAccessApp.swift"
+          perl -0777 -i -pe 's@init\(\) \{.*?\n  \}\n\n  var body@init() {\n    do {\n      try Wearables.configure()\n    } catch {\n      fatalError("[CameraAccess] Failed to configure Wearables SDK: " + String(describing: error))\n    }\n\n    #if DEBUG\n    if ProcessInfo.processInfo.arguments.contains("--ui-testing") {\n      MockDeviceKit.shared.enable(config: MockDeviceKitConfig(initiallyRegistered: false))\n\n      let portFilePath = ProcessInfo.processInfo.environment["MWDAT_TEST_SERVER_PORT_FILE"]\n      Task {\n        try await MockDeviceKit.shared.startTestServer(portFilePath: portFilePath)\n      }\n    }\n    #endif\n\n    let wearables = Wearables.shared\n    self.wearables = wearables\n    self._wearablesViewModel = State(wrappedValue: WearablesViewModel(wearables: wearables))\n  }\n\n  var body@s' "$SAMPLE_DIR/CameraAccess/CameraAccessApp.swift"
 
           # Ensure unit tests don't hide configure() failures with `try?`.
           perl -0777 -i -pe 's@override func setUp\(\) async throws \{.*?try await Task\.sleep\(nanoseconds: 1_000_000_000\)\n  \}@override func setUp() async throws {\n    try await super.setUp()\n    try Wearables.configure()\n\n    MockDeviceKit.shared.enable()\n\n    // Pair mock device and set up camera kit\n    let pairedMockDevice = MockDeviceKit.shared.pairRaybanMeta()\n    mockDevice = pairedMockDevice\n    cameraKit = pairedMockDevice.services.camera\n\n    // Power on and unfold the device to make it available\n    pairedMockDevice.powerOn()\n    pairedMockDevice.unfold()\n\n    // Wait for device to be available in Wearables\n    try await Task.sleep(nanoseconds: 1_000_000_000)\n  }@s' "$SAMPLE_DIR/CameraAccessTests/CameraAccessTests.swift"
@@ -109,7 +110,18 @@ jobs:
         run: |
           mkdir -p TestResults
           set -o pipefail
-          if [ -z "${META_APP_ID:-}" ] || [ -z "${CLIENT_TOKEN:-}" ] || [ -z "${DEVELOPMENT_TEAM:-}" ]; then
+          if [ "${DAT_DEVELOPER_MODE:-false}" = "true" ]; then
+            EFFECTIVE_META_APP_ID="${META_APP_ID:-0}"
+            EFFECTIVE_CLIENT_TOKEN="${CLIENT_TOKEN:-developer-mode}"
+            EFFECTIVE_DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:-AAAAAAAAAA}"
+            echo "DAT Developer Mode enabled: forcing dev-safe DAT settings for CI." | tee -a test.log
+          else
+            EFFECTIVE_META_APP_ID="${META_APP_ID:-}"
+            EFFECTIVE_CLIENT_TOKEN="${CLIENT_TOKEN:-}"
+            EFFECTIVE_DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:-}"
+          fi
+
+          if [ -z "${EFFECTIVE_META_APP_ID:-}" ] || [ -z "${EFFECTIVE_CLIENT_TOKEN:-}" ] || [ -z "${EFFECTIVE_DEVELOPMENT_TEAM:-}" ]; then
             echo "Warning: one or more DAT settings are empty (META_APP_ID, CLIENT_TOKEN, DEVELOPMENT_TEAM)." | tee -a test.log
           fi
 
@@ -124,9 +136,9 @@ jobs:
               -parallel-testing-enabled NO \
               -maximum-concurrent-test-simulator-destinations 1 \
               CODE_SIGNING_ALLOWED=NO \
-              META_APP_ID="${META_APP_ID:-}" \
-              CLIENT_TOKEN="${CLIENT_TOKEN:-}" \
-              DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:-}" \
+              META_APP_ID="${EFFECTIVE_META_APP_ID:-}" \
+              CLIENT_TOKEN="${EFFECTIVE_CLIENT_TOKEN:-}" \
+              DEVELOPMENT_TEAM="${EFFECTIVE_DEVELOPMENT_TEAM:-}" \
               test \
               -only-testing:CameraAccessTests \
               -skip-testing:CameraAccessUITests
