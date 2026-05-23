@@ -2,6 +2,12 @@ name: DAT CameraAccess Sample
 
 "on":
   workflow_dispatch:
+    inputs:
+      run_ui_tests:
+        description: "Run CameraAccess UI tests and record simulator video"
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   cameraaccess-sample:
@@ -12,6 +18,7 @@ jobs:
       PROJECT_PATH: CameraAccess.xcodeproj
       SCHEME: CameraAccess
       RESULT_BUNDLE: TestResults/CameraAccess.xcresult
+      UI_RESULT_BUNDLE: TestResults/CameraAccessUITests.xcresult
 
     steps:
       - name: Checkout
@@ -32,8 +39,9 @@ jobs:
         run: |
           # Upstream sample uses `isolated deinit`, which is unavailable in
           # the production compiler shipped on GitHub's Xcode 16.4 image.
-          sed -i '' 's/^\([[:space:]]*\)isolated deinit/\1deinit/' "$SAMPLE_DIR/CameraAccess/ViewModels/DeviceSessionManager.swift"
-          sed -i '' 's/^\([[:space:]]*\)isolated deinit/\1deinit/' "$SAMPLE_DIR/CameraAccess/ViewModels/WearablesViewModel.swift"
+          # Rewrite to a deinit that performs cleanup in a MainActor-assumed scope.
+          perl -0777 -i -pe 's#isolated deinit \{\n\s*deviceMonitorTask\?\.cancel\(\)\n\s*stateObserverTask\?\.cancel\(\)\n\s*deviceSession\?\.stop\(\)\n\s*\}#deinit {\n    MainActor.assumeIsolated {\n      deviceMonitorTask?.cancel()\n      stateObserverTask?.cancel()\n      deviceSession?.stop()\n    }\n  }#s' "$SAMPLE_DIR/CameraAccess/ViewModels/DeviceSessionManager.swift"
+          perl -0777 -i -pe 's#isolated deinit \{\n\s*registrationTask\?\.cancel\(\)\n\s*deviceStreamTask\?\.cancel\(\)\n\s*setupDeviceStreamTask\?\.cancel\(\)\n\s*\}#deinit {\n    MainActor.assumeIsolated {\n      registrationTask?.cancel()\n      deviceStreamTask?.cancel()\n      setupDeviceStreamTask?.cancel()\n    }\n  }#s' "$SAMPLE_DIR/CameraAccess/ViewModels/WearablesViewModel.swift"
 
       - name: Resolve simulator destination
         run: |
@@ -42,6 +50,20 @@ jobs:
             DEST='platform=iOS Simulator,name=iPhone 16'
           fi
           echo "IOS_DESTINATION=$DEST" >> "$GITHUB_ENV"
+          if echo "$DEST" | grep -q 'id='; then
+            SIM_ID="${DEST#*id=}"
+            echo "IOS_SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          fi
+
+      - name: Boot simulator
+        run: |
+          if [ -n "${IOS_SIM_ID:-}" ]; then
+            xcrun simctl boot "$IOS_SIM_ID" || true
+            xcrun simctl bootstatus "$IOS_SIM_ID" -b
+          else
+            xcrun simctl boot "iPhone 16" || true
+            xcrun simctl bootstatus "iPhone 16" -b
+          fi
 
       - name: List CameraAccess schemes
         working-directory: ${{ env.SAMPLE_DIR }}
@@ -75,6 +97,54 @@ jobs:
             test \
             -only-testing:CameraAccessTests | tee test.log
 
+      - name: Start simulator screen recording (UI tests)
+        if: ${{ github.event.inputs.run_ui_tests != 'false' }}
+        working-directory: ${{ env.SAMPLE_DIR }}
+        run: |
+          mkdir -p Artifacts
+          if [ -n "${IOS_SIM_ID:-}" ]; then
+            xcrun simctl io "$IOS_SIM_ID" recordVideo Artifacts/cameraaccess-ui-demo.mov &
+          else
+            xcrun simctl io booted recordVideo Artifacts/cameraaccess-ui-demo.mov &
+          fi
+          echo $! > Artifacts/recording_pid.txt
+
+      - name: Run CameraAccess UI tests
+        if: ${{ github.event.inputs.run_ui_tests != 'false' }}
+        working-directory: ${{ env.SAMPLE_DIR }}
+        run: |
+          mkdir -p TestResults
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -destination "$IOS_DESTINATION" \
+            -configuration Debug \
+            -resultBundlePath "$UI_RESULT_BUNDLE" \
+            CODE_SIGNING_ALLOWED=NO \
+            test \
+            -only-testing:CameraAccessUITests | tee ui-test.log
+
+      - name: Capture final simulator screenshot (UI tests)
+        if: ${{ always() && github.event.inputs.run_ui_tests != 'false' }}
+        working-directory: ${{ env.SAMPLE_DIR }}
+        run: |
+          mkdir -p Artifacts
+          if [ -n "${IOS_SIM_ID:-}" ]; then
+            xcrun simctl io "$IOS_SIM_ID" screenshot Artifacts/final-screen-ui.png || true
+          else
+            xcrun simctl io booted screenshot Artifacts/final-screen-ui.png || true
+          fi
+
+      - name: Stop simulator screen recording (UI tests)
+        if: ${{ always() && github.event.inputs.run_ui_tests != 'false' }}
+        working-directory: ${{ env.SAMPLE_DIR }}
+        run: |
+          if [ -f Artifacts/recording_pid.txt ]; then
+            kill -INT "$(cat Artifacts/recording_pid.txt)" || true
+            sleep 5
+          fi
+
       - name: Upload CameraAccess artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -83,4 +153,6 @@ jobs:
           path: |
             external/meta-wearables-dat-ios/samples/CameraAccess/build.log
             external/meta-wearables-dat-ios/samples/CameraAccess/test.log
+            external/meta-wearables-dat-ios/samples/CameraAccess/ui-test.log
+            external/meta-wearables-dat-ios/samples/CameraAccess/Artifacts/**
             external/meta-wearables-dat-ios/samples/CameraAccess/TestResults/**
