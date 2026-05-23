@@ -46,7 +46,7 @@ jobs:
           # In CI unit-test host launches, app init can hit a fatal path if
           # Wearables.configure() runs before MockDeviceKit is enabled.
           # Enable mocks first for unit-test host bootstrap only.
-          perl -0777 -i -pe 's#init\(\) \{\n\s*do \{#init() {\n    #if DEBUG\n    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil && !ProcessInfo.processInfo.arguments.contains("--ui-testing") {\n      MockDeviceKit.shared.enable()\n    }\n    #endif\n\n    do {#s' "$SAMPLE_DIR/CameraAccess/CameraAccess/CameraAccessApp.swift"
+          perl -0777 -i -pe 's@init\(\) \{\n\s*do \{@init() {\n    #if DEBUG\n    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil && !ProcessInfo.processInfo.arguments.contains("--ui-testing") {\n      MockDeviceKit.shared.enable()\n    }\n    #endif\n\n    do {@s' "$SAMPLE_DIR/CameraAccess/CameraAccess/CameraAccessApp.swift"
 
       - name: Resolve simulator destination
         run: |
