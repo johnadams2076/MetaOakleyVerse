@@ -54,10 +54,22 @@ jobs:
           # Ensure unit tests don't hide configure() failures with `try?`.
           perl -0777 -i -pe 's@override func setUp\(\) async throws \{.*?try await Task\.sleep\(nanoseconds: 1_000_000_000\)\n  \}@override func setUp() async throws {\n    try await super.setUp()\n    try Wearables.configure()\n\n    MockDeviceKit.shared.enable()\n\n    // Pair mock device and set up camera kit\n    let pairedMockDevice = MockDeviceKit.shared.pairRaybanMeta()\n    mockDevice = pairedMockDevice\n    cameraKit = pairedMockDevice.services.camera\n\n    // Power on and unfold the device to make it available\n    pairedMockDevice.powerOn()\n    pairedMockDevice.unfold()\n\n    // Wait for device to be available in Wearables\n    try await Task.sleep(nanoseconds: 1_000_000_000)\n  }@s' "$SAMPLE_DIR/CameraAccessTests/CameraAccessTests.swift"
 
+          # Follow-up hardening for simulator/dev-mode runs.
+          perl -0777 -i -pe 's@init\(\) \{\n    do \{@init() {\n    #if DEBUG\n    if !MockDeviceKit.shared.isEnabled {\n      MockDeviceKit.shared.enable(config: MockDeviceKitConfig(initiallyRegistered: false))\n    }\n    #endif\n\n    do {@s' "$SAMPLE_DIR/CameraAccess/CameraAccessApp.swift"
+          perl -0777 -i -pe 's@try Wearables\.configure\(\)\n\n    MockDeviceKit\.shared\.enable\(\)@MockDeviceKit.shared.enable()\n    try Wearables.configure()@s' "$SAMPLE_DIR/CameraAccessTests/CameraAccessTests.swift"
+
+          if [ "${DAT_DEVELOPER_MODE:-false}" = "true" ]; then
+            perl -0777 -i -pe 's@<key>MetaAppID</key>\s*<!--.*?-->\s*<string>\$\(META_APP_ID\)</string>@<key>MetaAppID</key>\n\t\t<string>0</string>@s' "$SAMPLE_DIR/CameraAccess/Info.plist"
+            perl -0777 -i -pe 's@\s*<!-- Without Developer Mode, this key will need to be set with ClientToken from the app registered in Wearables Developer Center -->\s*<key>ClientToken</key>\s*<string>\$\(CLIENT_TOKEN\)</string>@@s' "$SAMPLE_DIR/CameraAccess/Info.plist"
+            perl -0777 -i -pe 's@\s*<!-- Without Developer Mode, this key will need to be set with your Apple Developer Team ID - Set this in Xcode under Signing & Capabilities -->\s*<key>TeamID</key>\s*<string>\$\(DEVELOPMENT_TEAM\)</string>@@s' "$SAMPLE_DIR/CameraAccess/Info.plist"
+          fi
+
           echo "Patched CameraAccessApp init:"
           sed -n '1,90p' "$SAMPLE_DIR/CameraAccess/CameraAccessApp.swift"
           echo "Patched CameraAccessTests setUp():"
           sed -n '1,90p' "$SAMPLE_DIR/CameraAccessTests/CameraAccessTests.swift"
+          echo "Patched CameraAccess Info.plist MWDAT block:"
+          sed -n '/<key>MWDAT<\/key>/,/<\/dict>/p' "$SAMPLE_DIR/CameraAccess/Info.plist"
 
       - name: Resolve simulator destination
         run: |
@@ -112,8 +124,8 @@ jobs:
           set -o pipefail
           if [ "${DAT_DEVELOPER_MODE:-false}" = "true" ]; then
             EFFECTIVE_META_APP_ID="${META_APP_ID:-0}"
-            EFFECTIVE_CLIENT_TOKEN="${CLIENT_TOKEN:-developer-mode}"
-            EFFECTIVE_DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:-AAAAAAAAAA}"
+            EFFECTIVE_CLIENT_TOKEN="${CLIENT_TOKEN:-}"
+            EFFECTIVE_DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:-}"
             echo "DAT Developer Mode enabled: forcing dev-safe DAT settings for CI." | tee -a test.log
           else
             EFFECTIVE_META_APP_ID="${META_APP_ID:-}"
@@ -121,7 +133,7 @@ jobs:
             EFFECTIVE_DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:-}"
           fi
 
-          if [ -z "${EFFECTIVE_META_APP_ID:-}" ] || [ -z "${EFFECTIVE_CLIENT_TOKEN:-}" ] || [ -z "${EFFECTIVE_DEVELOPMENT_TEAM:-}" ]; then
+          if [ "${DAT_DEVELOPER_MODE:-false}" != "true" ] && { [ -z "${EFFECTIVE_META_APP_ID:-}" ] || [ -z "${EFFECTIVE_CLIENT_TOKEN:-}" ] || [ -z "${EFFECTIVE_DEVELOPMENT_TEAM:-}" ]; }; then
             echo "Warning: one or more DAT settings are empty (META_APP_ID, CLIENT_TOKEN, DEVELOPMENT_TEAM)." | tee -a test.log
           fi
 
