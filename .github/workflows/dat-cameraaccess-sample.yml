@@ -43,6 +43,11 @@ jobs:
           perl -0777 -i -pe 's#isolated deinit \{\n\s*deviceMonitorTask\?\.cancel\(\)\n\s*stateObserverTask\?\.cancel\(\)\n\s*deviceSession\?\.stop\(\)\n\s*\}#deinit {}#s' "$SAMPLE_DIR/CameraAccess/ViewModels/DeviceSessionManager.swift"
           perl -0777 -i -pe 's#isolated deinit \{\n\s*registrationTask\?\.cancel\(\)\n\s*deviceStreamTask\?\.cancel\(\)\n\s*setupDeviceStreamTask\?\.cancel\(\)\n\s*\}#deinit {}#s' "$SAMPLE_DIR/CameraAccess/ViewModels/WearablesViewModel.swift"
 
+          # In CI unit-test host launches, app init can hit a fatal path if
+          # Wearables.configure() runs before MockDeviceKit is enabled.
+          # Enable mocks first for unit-test host bootstrap only.
+          perl -0777 -i -pe 's#init\(\) \{\n\s*do \{#init() {\n    #if DEBUG\n    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil && !ProcessInfo.processInfo.arguments.contains("--ui-testing") {\n      MockDeviceKit.shared.enable()\n    }\n    #endif\n\n    do {#s' "$SAMPLE_DIR/CameraAccess/CameraAccess/CameraAccessApp.swift"
+
       - name: Resolve simulator destination
         run: |
           DEST=$(xcrun simctl list devices available | grep -E "iPhone 16 \(" | head -n 1 | sed -E 's/^.*\(([^)]+)\) \(.*$/platform=iOS Simulator,id=\1/')
